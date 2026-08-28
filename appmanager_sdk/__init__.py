@@ -13,6 +13,7 @@ from appmanager_sdk.schema import (
     AdminSection,
     AppManifest,
     ScheduledTask,
+    SeoInfo,
     Setting,
 )
 
@@ -28,6 +29,7 @@ __all__ = [
     "Setting",
     "AdminSection",
     "ScheduledTask",
+    "SeoInfo",
     "AppManagerClient",
     "client",
     "get_current_user",

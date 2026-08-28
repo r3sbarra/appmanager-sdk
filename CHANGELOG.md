@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **SEO metadata**: new `SeoInfo` dataclass and `AppManifest.seo` field. Apps can
+  declare `title`, `description`, `keywords`, `canonical_url`, Open Graph
+  (`og_title`/`og_description`/`og_image`/`og_type`), Twitter card
+  (`twitter_card`/`twitter_image`), `robots`, and `json_ld` structured data.
+  Added fluent `AppManifest.with_seo(**kwargs)` builder. Wired into
+  `to_dict`/`from_dict`/`validate` (robots allowlist + json_ld type check).
+  Exported `SeoInfo` from the package root.
+
 ### Security
 - **Secret redaction**: `Setting.to_dict()` and `AppManifest.to_dict()` now redact
   `default` values for `is_secret=True` settings, so real secrets never serialize

@@ -333,6 +333,144 @@ class AppManagerClient:
         except Exception:
             pass
 
+    # ------------------------------------------------------------------
+    # Shared database access (approved by admin at install time)
+    # ------------------------------------------------------------------
+
+    def get_db_engine(self):
+        """
+        Returns a SQLAlchemy engine bound to the host's shared database, or None
+        when the app was denied DB access (or never requested it).
+
+        Uses the in-process host bridge so raw credentials never reach the app.
+        When None, the app should fall back to :meth:`get_local_sqlite`.
+        """
+        try:
+            from appmanager.bridge import get_db_engine as host_get_db_engine
+
+            slug = self._resolve_slug()
+            return host_get_db_engine(slug)
+        except Exception:
+            return None
+
+    def refresh_db_engine(self):
+        """
+        Disposes any cached engine and re-fetches it from the host (for secret
+        rotation or permission changes). Returns the new engine or None.
+        """
+        try:
+            from appmanager.bridge import refresh_db_engine as host_refresh
+
+            slug = self._resolve_slug()
+            return host_refresh(slug)
+        except Exception:
+            return None
+
+    def db_prefix(self) -> str:
+        """
+        Returns the scoped table prefix for this app (e.g. ``app_weatherapp_``),
+        or an empty string when the app has no scoped DB access.
+        """
+        try:
+            from appmanager.bridge import get_db_prefix
+
+            slug = self._resolve_slug()
+            return get_db_prefix(slug) or ""
+        except Exception:
+            return ""
+
+    def db_table(self, name: str) -> str:
+        """
+        Returns the fully-prefixed table name for this app's scoped namespace
+        (e.g. ``client.db_table("users")`` -> ``app_weatherapp_users``).
+        """
+        prefix = self.db_prefix()
+        return f"{prefix}{name}" if prefix else name
+
+    def get_local_sqlite(self, filename: Optional[str] = None):
+        """
+        Returns a SQLAlchemy engine for an empty local SQLite file owned by this
+        app, created on first call. Used as the fallback when shared DB access
+        is denied or not requested.
+
+        The file lives under the app's ``instance/`` directory (or the current
+        working directory if no instance dir is available).
+        """
+        import os
+
+        from sqlalchemy import create_engine
+
+        slug = self._resolve_slug()
+        filename = filename or f"{slug}.db"
+        base = os.getenv("APPMANAGER_INSTANCE_DIR") or os.path.join(
+            os.getcwd(), "instance"
+        )
+        os.makedirs(base, exist_ok=True)
+        path = os.path.join(base, filename)
+        return create_engine(f"sqlite:///{path}")
+
+    def get_auth_context(self, headers: Optional[Any] = None) -> Optional[Dict[str, Any]]:
+        """
+        Returns a narrow read-only auth context for the current user: login state,
+        display name, and role only. Never exposes email, id, or tokens.
+
+        Returns None when the app lacks the ``auth_readonly`` permission or the
+        user is not authenticated.
+        """
+        try:
+            from appmanager.bridge import get_auth_context as host_get_auth
+
+            slug = self._resolve_slug()
+            return host_get_auth(slug, headers)
+        except Exception:
+            return None
+
+    def app_api_key(self) -> str:
+        """
+        Returns the per-app API key injected by the host (via the
+        ``X-AppManager-App-Key`` header), or '' when not running under the host.
+
+        The key is injected by the dispatcher middleware, so the app never has to
+        store or manage credentials itself.
+        """
+        try:
+            from flask import request
+
+            return request.headers.get("X-AppManager-App-Key") or ""
+        except Exception:
+            return os.environ.get("APPMANAGER_APP_KEY", "")
+
+    def host_request(
+        self,
+        method: str,
+        path: str,
+        json: Optional[Any] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ):
+        """
+        Make an authenticated request to the host AppManager REST API using this
+        app's per-app API key. ``path`` is relative (e.g. ``/api/v1/health``).
+
+        Returns the parsed JSON response, or raises on HTTP error.
+        """
+        import json as _json
+        import urllib.request
+
+        base = os.environ.get("APPMANAGER_HOST_URL", "http://127.0.0.1:5000")
+        url = base.rstrip("/") + "/" + path.lstrip("/")
+        req_headers = {
+            "X-AppManager-App-Key": self.app_api_key(),
+            "X-AppManager-SubApp-Slug": self._resolve_slug(),
+            "Content-Type": "application/json",
+        }
+        if headers:
+            req_headers.update(headers)
+        data = _json.dumps(json).encode() if json is not None else None
+        req = urllib.request.Request(url, data=data, headers=req_headers, method=method.upper())
+        with urllib.request.urlopen(req) as resp:
+            body = resp.read().decode()
+            return _json.loads(body) if body else None
+
 
 # Convenience singleton instance bound to env config (no explicit args).
 client = AppManagerClient()

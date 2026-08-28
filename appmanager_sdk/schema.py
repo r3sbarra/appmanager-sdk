@@ -175,6 +175,123 @@ class ScheduledTask:
         }
 
 
+# Allowed values for the ``robots`` SEO field. Anything else is rejected by
+# :meth:`AppManifest.validate`.
+VALID_ROBOTS_VALUES = {
+    "index,follow",
+    "index,nofollow",
+    "noindex,follow",
+    "noindex,nofollow",
+    "index",
+    "noindex",
+    "follow",
+    "nofollow",
+    "none",
+}
+
+
+@dataclass
+class SeoInfo:
+    """
+    Declarative SEO metadata for an AppManager sub-application.
+
+    This is the contract between a sub-app and the AppManager host for search
+    engine optimization. The app declares its SEO intent here; the host is
+    responsible for rendering it into the served HTML ``<head>`` (and for
+    emitting ``robots.txt`` / ``sitemap.xml``). All fields are optional — the
+    host falls back to sensible defaults (e.g. ``name`` for the title).
+
+    ``json_ld`` is a free-form dict serialized as-is into a ``<script
+    type="application/ld+json">`` block (e.g. ``{"@type": "SoftwareApplication",
+    ...}``).
+    """
+
+    title: Optional[str] = None  # overrides <title>; falls back to manifest name
+    description: Optional[str] = None  # meta description
+    keywords: Optional[List[str]] = None  # meta keywords
+    canonical_url: Optional[str] = None  # canonical link href
+    og_title: Optional[str] = None  # Open Graph title
+    og_description: Optional[str] = None  # Open Graph description
+    og_image: Optional[str] = None  # Open Graph image URL
+    og_type: Optional[str] = None  # Open Graph type (e.g. "website")
+    twitter_card: Optional[str] = None  # Twitter card type (e.g. "summary_large_image")
+    twitter_image: Optional[str] = None  # Twitter image URL
+    robots: Optional[str] = None  # one of VALID_ROBOTS_VALUES
+    json_ld: Optional[Dict[str, Any]] = None  # raw JSON-LD structured data
+
+    # Field reference (type / usage):
+    #   title          (str|None) — <title>; falls back to manifest name.
+    #   description    (str|None) — meta description.
+    #   keywords       (list[str]|None) — meta keywords.
+    #   canonical_url  (str|None) — canonical link href.
+    #   og_title       (str|None) — Open Graph title.
+    #   og_description (str|None) — Open Graph description.
+    #   og_image       (str|None) — Open Graph image URL.
+    #   og_type        (str|None) — Open Graph type.
+    #   twitter_card   (str|None) — Twitter card type.
+    #   twitter_image  (str|None) — Twitter image URL.
+    #   robots         (str|None) — one of VALID_ROBOTS_VALUES.
+    #   json_ld        (dict|None) — raw JSON-LD structured data.
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize to the ``seo`` block shape consumed by the host.
+
+        Returns:
+            A dict with only the non-None fields set, so optional SEO metadata
+            is omitted from ``manifest.json`` when unset.
+        """
+        data: Dict[str, Any] = {
+            "title": self.title,
+            "description": self.description,
+            "keywords": self.keywords,
+            "canonical_url": self.canonical_url,
+            "og_title": self.og_title,
+            "og_description": self.og_description,
+            "og_image": self.og_image,
+            "og_type": self.og_type,
+            "twitter_card": self.twitter_card,
+            "twitter_image": self.twitter_image,
+            "robots": self.robots,
+            "json_ld": self.json_ld,
+        }
+        return {k: v for k, v in data.items() if v is not None}
+
+    @classmethod
+    def from_dict(cls, data: Optional[Dict[str, Any]]) -> Optional["SeoInfo"]:
+        """
+        Construct a SeoInfo from a dict, or return None if ``data`` is falsy.
+
+        Unknown keys are ignored (forward-compatible). ``keywords`` is coerced
+        to a list if given as a comma-separated string.
+
+        Args:
+            data: A dict, typically the ``seo`` block of a manifest.
+
+        Returns:
+            A :class:`SeoInfo` instance, or None if ``data`` is empty/None.
+        """
+        if not data:
+            return None
+        keywords = data.get("keywords")
+        if isinstance(keywords, str):
+            keywords = [k.strip() for k in keywords.split(",") if k.strip()]
+        return cls(
+            title=data.get("title"),
+            description=data.get("description"),
+            keywords=keywords,
+            canonical_url=data.get("canonical_url"),
+            og_title=data.get("og_title"),
+            og_description=data.get("og_description"),
+            og_image=data.get("og_image"),
+            og_type=data.get("og_type"),
+            twitter_card=data.get("twitter_card"),
+            twitter_image=data.get("twitter_image"),
+            robots=data.get("robots"),
+            json_ld=data.get("json_ld"),
+        )
+
+
 @dataclass
 class AppManifest:
     """
@@ -199,10 +316,17 @@ class AppManifest:
     target_app: Optional[str] = None  # required when app_type == "extension"
     has_web_ui: bool = True
     requires_auth: bool = True
+    # Database access request (approved/denied by admin at install time).
+    requests_database: bool = False
+    database_access_level: str = "scoped"  # "scoped" (default) | "full"
+    database_description: str = ""  # human-readable justification shown to admin
+    # Read-only auth access request (login state / display name / role only).
+    requests_auth_readonly: bool = False
     settings: List[Setting] = field(default_factory=list)
     admin_sections: List[AdminSection] = field(default_factory=list)
     ui_slots: List[str] = field(default_factory=list)
     scheduled_tasks: List[ScheduledTask] = field(default_factory=list)
+    seo: Optional[SeoInfo] = None  # declarative SEO metadata (see SeoInfo)
 
     def __post_init__(self) -> None:
         """
@@ -243,6 +367,12 @@ class AppManifest:
             elif isinstance(t, dict):
                 norm_tasks.append(ScheduledTask(**t))
         self.scheduled_tasks = norm_tasks
+
+        # Normalize SEO: accept either a SeoInfo object or a raw dict.
+        if isinstance(self.seo, dict):
+            self.seo = SeoInfo.from_dict(self.seo)
+        elif self.seo is not None and not isinstance(self.seo, SeoInfo):
+            self.seo = None
 
     def add_setting(
         self,
@@ -335,6 +465,27 @@ class AppManifest:
             self.ui_slots.append(slot_name)
         return self
 
+    def with_seo(self, **kwargs: Any) -> "AppManifest":
+        """
+        Fluent builder: set the app's SEO metadata and return self for chaining.
+
+        Accepts any :class:`SeoInfo` field as a keyword argument (e.g.
+        ``title``, ``description``, ``keywords``, ``canonical_url``,
+        ``og_image``, ``robots``, ``json_ld``). Passing a ``SeoInfo`` instance
+        as ``seo=...`` also works. Calling again merges/overwrites the previous
+        SEO block.
+
+        Returns:
+            ``self`` for chaining.
+        """
+        if "seo" in kwargs and isinstance(kwargs["seo"], SeoInfo):
+            self.seo = kwargs["seo"]
+            return self
+        current = self.seo.to_dict() if self.seo else {}
+        current.update({k: v for k, v in kwargs.items() if v is not None})
+        self.seo = SeoInfo.from_dict(current)
+        return self
+
     def validate(self) -> List[str]:
         """
         Validates manifest fields against AppManager specification.
@@ -362,6 +513,12 @@ class AppManifest:
         if ":" not in self.entry_point:
             errors.append(f"entry_point '{self.entry_point}' must follow 'module:variable' format.")
 
+        # Database access request validation.
+        if self.requests_database and self.database_access_level not in ("scoped", "full"):
+            errors.append(
+                f"database_access_level '{self.database_access_level}' must be 'scoped' or 'full'."
+            )
+
         # Setting validation: reject unknown types and duplicate keys.
         seen_keys = set()
         for s in self.settings:
@@ -388,6 +545,16 @@ class AppManifest:
                     f"ScheduledTask '{t.name}' frequency '{t.frequency}' must be one of "
                     f"{', '.join(sorted(VALID_FREQUENCIES))} or a cron expression."
                 )
+
+        # SEO validation: robots must be a known value; json_ld must be a dict.
+        if self.seo is not None:
+            if self.seo.robots and self.seo.robots not in VALID_ROBOTS_VALUES:
+                errors.append(
+                    f"SEO 'robots' value '{self.seo.robots}' is invalid. "
+                    f"Allowed: {', '.join(sorted(VALID_ROBOTS_VALUES))}"
+                )
+            if self.seo.json_ld is not None and not isinstance(self.seo.json_ld, dict):
+                errors.append("SEO 'json_ld' must be a JSON object (dict).")
 
         return errors
 
@@ -440,11 +607,16 @@ class AppManifest:
             "target_app": self.target_app,
             "has_web_ui": self.has_web_ui,
             "requires_auth": self.requires_auth,
+            "requests_database": self.requests_database,
+            "database_access_level": self.database_access_level,
+            "database_description": self.database_description,
+            "requests_auth_readonly": self.requests_auth_readonly,
             "settings": settings_dict,
             "settings_schema": settings_schema_list,
             "admin_sections": admin_sections_list,
             "ui_slots": self.ui_slots,
             "scheduled_tasks": scheduled_tasks_list,
+            "seo": self.seo.to_dict() if self.seo else None,
         }
 
         # Filter out None values so optional fields are omitted from the JSON.
@@ -575,10 +747,15 @@ class AppManifest:
             target_app=data.get("target_app"),
             has_web_ui=data.get("has_web_ui", data.get("has_ui", True)),
             requires_auth=data.get("requires_auth", True),
+            requests_database=data.get("requests_database", False),
+            database_access_level=data.get("database_access_level", "scoped"),
+            database_description=data.get("database_description", ""),
+            requests_auth_readonly=data.get("requests_auth_readonly", False),
             settings=settings_list,
             admin_sections=sections_list,
             ui_slots=data.get("ui_slots", []),
             scheduled_tasks=tasks_list,
+            seo=SeoInfo.from_dict(data.get("seo")),
         )
 
     @classmethod
