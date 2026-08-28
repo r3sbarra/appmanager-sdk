@@ -5,7 +5,7 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/appmanager-sdk.svg)](https://pypi.org/project/appmanager-sdk/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Lightweight developer SDK, manifest builder, and runtime client for [AppManager](https://github.com/appmanager/appmanager) sub-applications and extensions.
+Lightweight developer SDK, manifest builder, and runtime client for [AppManager Server](https://github.com/r3sbarra/appmanager-server) sub-applications and extensions.
 
 ---
 
@@ -13,7 +13,7 @@ Lightweight developer SDK, manifest builder, and runtime client for [AppManager]
 
 - **No Heavy Host Dependencies**: Zero required external dependencies (pure Python standard library).
 - **Python-Native Manifest Definition**: Declare sub-application metadata, settings schema, UI slots, and scheduled tasks directly in your Python entrypoint instead of writing JSON by hand.
-- **Automated Manifest Generation**: Export `manifest.json` via CLI (`appmanager-sdk generate`), python scripts (`manifest.save_manifest()`), or on-demand execution (`python app.py --generate-manifest`).
+- **Automated Manifest Generation**: Export `manifest.json` via CLI (`appmanager-sdk generate` or `appmgr-sdk generate`), python scripts (`manifest.save_manifest()`), or on-demand execution (`python app.py --generate-manifest`).
 - **Type-Safe Schema & Autocomplete**: Modern dataclasses (`AppManifest`, `Setting`, `AdminSection`, `ScheduledTask`) with full IDE auto-completion.
 - **Runtime Client SDK**: Lightweight `AppManagerClient` with `@require_auth` view decorator, header-based user resolution, and host telemetry integration.
 - **Flask Extension Integration**: Clean `AppManager(app, manifest=...)` integration that automatically handles health check routes and CLI commands.

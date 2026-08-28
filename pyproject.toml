@@ -62,6 +62,7 @@ Changelog = "https://github.com/r3sbarra/appmanager-sdk/blob/master/CHANGELOG.md
 
 [project.scripts]
 appmanager-sdk = "appmanager_sdk.cli:main"
+appmgr-sdk = "appmanager_sdk.cli:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "appmanager_sdk.__version__" }
