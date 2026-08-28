@@ -54,11 +54,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/appmanager/appmanager-sdk"
-Documentation = "https://github.com/appmanager/appmanager-sdk#readme"
-Repository = "https://github.com/appmanager/appmanager-sdk.git"
-Issues = "https://github.com/appmanager/appmanager-sdk/issues"
-Changelog = "https://github.com/appmanager/appmanager-sdk/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/r3sbarra/appmanager-sdk"
+Documentation = "https://github.com/r3sbarra/appmanager-sdk#readme"
+Repository = "https://github.com/r3sbarra/appmanager-sdk.git"
+Issues = "https://github.com/r3sbarra/appmanager-sdk/issues"
+Changelog = "https://github.com/r3sbarra/appmanager-sdk/blob/master/CHANGELOG.md"
 
 [project.scripts]
 appmanager-sdk = "appmanager_sdk.cli:main"

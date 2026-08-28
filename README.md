@@ -1,6 +1,6 @@
 # AppManager SDK (`appmanager-sdk`)
 
-[![CI](https://github.com/appmanager/appmanager-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/appmanager/appmanager-sdk/actions/workflows/ci.yml)
+[![CI](https://github.com/r3sbarra/appmanager-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/r3sbarra/appmanager-sdk/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/appmanager-sdk.svg)](https://pypi.org/project/appmanager-sdk/)
 [![Python Version](https://img.shields.io/pypi/pyversions/appmanager-sdk.svg)](https://pypi.org/project/appmanager-sdk/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
