@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include SECURITY.md
+include appmanager_sdk/py.typed
+recursive-include tests *.py
+
