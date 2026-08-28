@@ -421,7 +421,8 @@ class AppManagerClient:
             from appmanager.bridge import get_auth_context as host_get_auth
 
             slug = self._resolve_slug()
-            return host_get_auth(slug, headers)
+            res = host_get_auth(slug, headers)
+            return res if isinstance(res, dict) else None
         except Exception:
             return None
 
