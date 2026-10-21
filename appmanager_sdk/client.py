@@ -296,6 +296,10 @@ class AppManagerClient:
                     )
                 if app_rec.settings_json:
                     settings = json.loads(app_rec.settings_json)
+                    # The typed ``app_configs`` store is authoritative. Only consult
+                    # the legacy blob for keys that were never migrated, so a stale
+                    # blob value can no longer shadow a value the operator set in
+                    # the admin UI.
                     return settings.get(key, default)
         except Exception:
             _logger.debug("get_setting host lookup failed for key %s", key, exc_info=True)
@@ -402,9 +406,7 @@ class AppManagerClient:
 
         slug = self._resolve_slug()
         filename = filename or f"{slug}.db"
-        base = os.getenv("APPMANAGER_INSTANCE_DIR") or os.path.join(
-            os.getcwd(), "instance"
-        )
+        base = os.getenv("APPMANAGER_INSTANCE_DIR") or os.path.join(os.getcwd(), "instance")
         os.makedirs(base, exist_ok=True)
         path = os.path.join(base, filename)
         return create_engine(f"sqlite:///{path}")

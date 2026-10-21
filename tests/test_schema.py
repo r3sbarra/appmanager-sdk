@@ -215,7 +215,9 @@ def test_manifest_seo_validation():
     errors = bad_jsonld.validate()
     assert any("json_ld" in e for e in errors)
 
-    good = AppManifest(name="Good", seo={"robots": "noindex,nofollow", "json_ld": {"@type": "WebSite"}})
+    good = AppManifest(
+        name="Good", seo={"robots": "noindex,nofollow", "json_ld": {"@type": "WebSite"}}
+    )
     assert good.validate() == []
 
 
